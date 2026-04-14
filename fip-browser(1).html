@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIP — Track Browser</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:ital,wght@0,300;0,400;1,300&family=IBM+Plex+Sans:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #e8e8e0;
+    --muted: #666;
+    --live: #ff3b3b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.8rem;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .logo span {
+    color: var(--muted);
+    font-size: 1rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    margin-left: 6px;
+  }
+
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--live);
+    display: inline-block;
+    margin-right: 6px;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ── API KEY BAR ── */
+  .api-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+  }
+
+  .api-label {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .api-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 5px 10px;
+    width: 280px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-input:focus { border-color: var(--accent); }
+  .api-input::placeholder { color: var(--muted); }
+
+  .api-status {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border: 1px solid;
+  }
+
+  .api-status.none { color: var(--muted); border-color: var(--border); }
+  .api-status.active { color: var(--accent); border-color: var(--accent); }
+
+  /* ── CONTROLS ── */
+  .controls {
+    padding: 20px 32px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .channel-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ch-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 5px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .ch-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ch-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 400; }
+
+  .controls-right {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    padding: 6px 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all 0.15s;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+  .btn.primary:hover { background: #d4eb30; }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .days-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    padding: 6px 10px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* ── NOW PLAYING ── */
+  .now-playing {
+    margin: 20px 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .now-playing::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--live);
+  }
+
+  .np-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--live);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    white-space: nowrap;
+  }
+
+  .np-track {
+    flex: 1;
+  }
+
+  .np-title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 400;
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  .np-artist {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .np-yt {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--accent2);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 5px 10px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .np-yt:hover { background: var(--accent2); color: #000; border-color: var(--accent2); }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    padding: 8px 32px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .status-bar span { display: flex; align-items: center; gap: 6px; }
+  .status-bar .accent { color: var(--accent); }
+
+  /* ── SORT BAR ── */
+  .sort-bar {
+    padding: 10px 32px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sort-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 4px;
+  }
+
+  .sort-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 4px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: all 0.15s;
+  }
+
+  .sort-btn:hover { color: var(--text); }
+  .sort-btn.active { color: var(--accent); border-color: var(--accent); }
+
+  /* ── TRACK LIST ── */
+  .track-list {
+    padding: 0 32px 40px;
+  }
+
+  .track-item {
+    display: grid;
+    grid-template-columns: 36px 36px 1fr auto auto;
+    gap: 0 16px;
+    align-items: center;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+
+  .track-item:hover { background: var(--surface); margin: 0 -32px; padding: 11px 32px; }
+
+  .track-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .track-info { min-width: 0; }
+
+  .track-title {
+    font-weight: 400;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+  }
+
+  .track-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 2px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .track-plays {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+    white-space: nowrap;
+    text-align: right;
+    line-height: 1.4;
+  }
+
+  .plays-count {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    line-height: 1;
+    display: block;
+  }
+
+  .plays-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .yt-link {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--accent2);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    padding: 4px 9px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .yt-link:hover { background: var(--accent2); color: #000; border-color: var(--accent2); }
+
+  /* ── EMPTY / LOADING ── */
+  .empty-state {
+    padding: 60px 32px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 2;
+  }
+
+  .empty-state .big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    color: var(--border);
+    display: block;
+    letter-spacing: 0.1em;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── HISTORY NOTICE ── */
+  .history-notice {
+    margin: 0 32px 0;
+    background: #1a1a00;
+    border: 1px solid #3a3a00;
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: #aaaa40;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: -8px;
+  }
+
+  .history-notice a { color: var(--accent); text-decoration: none; }
+  .history-notice a:hover { text-decoration: underline; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+<body>
+
+<div id="gate" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="text-align:center;font-family:'IBM Plex Mono',monospace;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:4rem;color:var(--accent);letter-spacing:0.1em;margin-bottom:24px;">FIP</div>
+    <input id="pwInput" type="password" placeholder="password" autofocus
+      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);
+             font-family:'IBM Plex Mono',monospace;font-size:0.9rem;padding:10px 16px;
+             outline:none;width:220px;text-align:center;letter-spacing:0.15em;">
+    <div id="pwError" style="color:#ff4444;font-size:0.75rem;margin-top:10px;height:16px;"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const PASS = 'absinthe';
+  const stored = sessionStorage.getItem('fip_auth');
+  if (stored === PASS) {
+    document.getElementById('gate').style.display = 'none';
+    return;
+  }
+  const input = document.getElementById('pwInput');
+  input.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    if (input.value === PASS) {
+      sessionStorage.setItem('fip_auth', PASS);
+      document.getElementById('gate').style.display = 'none';
+    } else {
+      document.getElementById('pwError').textContent = 'incorrect';
+      input.value = '';
+      setTimeout(() => document.getElementById('pwError').textContent = '', 2000);
+    }
+  });
+})();
+</script>
+
+<header>
+  <div class="logo">FIP <span>track browser</span></div>
+  <div class="header-right">
+    <span id="clock" style="font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--muted)"></span>
+  </div>
+</header>
+
+<div class="api-bar" style="display:none">
+  <input id="apiKey" type="hidden">
+  <span id="apiStatus"></span>
+  <button id="fetchHistory">Fetch History</button>
+</div>
+
+<div class="controls">
+  <div class="channel-grid" id="channelGrid"></div>
+  <div class="controls-right">
+    <select class="days-select" id="daysSelect">
+      <option value="1">Last 24h</option>
+      <option value="3">Last 3 days</option>
+      <option value="7" selected>Last 7 days</option>
+      <option value="30">Last 30 days</option>
+      <option value="0">All time</option>
+    </select>
+    <button class="btn" id="clearBtn">Clear</button>
+    <button class="btn" id="refreshBtn">↺ Refresh</button>
+  </div>
+</div>
+
+<div id="nowPlayingWrap"></div>
+
+<div id="historyNotice" style="display:none"></div>
+
+<div class="status-bar" id="statusBar">
+  <span>Select a channel to begin</span>
+  <button class="btn" id="testBtn" style="margin-left:auto;font-size:0.65rem;padding:3px 10px" onclick="runDiagnostic()">Test Connection</button>
+</div>
+
+<div class="sort-bar">
+  <span class="sort-label">Sort</span>
+  <button class="sort-btn active" data-sort="plays">Most played</button>
+  <button class="sort-btn" data-sort="recent">Most recent</button>
+  <button class="sort-btn" data-sort="alpha">A–Z</button>
+</div>
+
+<div class="track-list" id="trackList">
+  <div class="empty-state">
+    <span class="big">FIP</span>
+    Select a channel above to begin
+  </div>
+</div>
+
+<script>
+// ── Station map: label, FIP GraphQL stationId, previousTrackLimit supported ──
+const CHANNELS_CLEAN = [
+  { id: 'fip',            label: 'FIP Main',   stationId: 7,   enum: 'FIP'            },
+  { id: 'fip_rock',       label: 'Rock',       stationId: 64,  enum: 'FIP_ROCK'       },
+  { id: 'fip_jazz',       label: 'Jazz',       stationId: 65,  enum: 'FIP_JAZZ'       },
+  { id: 'fip_groove',     label: 'Groove',     stationId: 66,  enum: 'FIP_GROOVE'     },
+  { id: 'fip_world',      label: 'World',      stationId: 69,  enum: 'FIP_WORLD'      },
+  { id: 'fip_nouveautes', label: 'Nouveautés', stationId: 70,  enum: 'FIP_NOUVEAUTES' },
+  { id: 'fip_reggae',     label: 'Reggae',     stationId: 71,  enum: 'FIP_REGGAE'     },
+  { id: 'fip_electro',    label: 'Electro',    stationId: 74,  enum: 'FIP_ELECTRO'    },
+  { id: 'fip_pop',        label: 'Pop',        stationId: 78,  enum: 'FIP_POP'        },
+  { id: 'fip_hiphop',     label: 'Hip-Hop',    stationId: 30,  enum: 'FIP_HIP_HOP'   },
+  { id: 'fip_metal',      label: 'Metal',      stationId: 143, enum: 'FIP_METAL'      },
+  { id: 'fip_cultes',     label: 'Cultes',     stationId: 149, enum: 'FIP_CULTES'     },
+];
+
+const RF_TOKEN   = 'a029913c-3b1a-4ffc-82b7-255892739ee5';
+const RF_BASE    = 'https://api.radiofrance.fr/livemeta/pull/';
+const OPENAPI    = `https://openapi.radiofrance.fr/v1/graphql?x-token=${RF_TOKEN}`;
+
+let currentChannel = null;
+let trackCache = {};
+let sortMode = 'plays';
+let pollTimer = null;
+let nowPlaying = null;
+
+// ── INIT ──
+buildChannelGrid();
+startClock();
+loadCacheFromStorage();
+// Clear fetch timestamps once to force reload with fixed artist data
+if (!localStorage.getItem('fip_artist_fix_v1')) {
+  CHANNELS_CLEAN.forEach(ch => localStorage.removeItem(`fip_lastfetch_${ch.id}`));
+  localStorage.setItem('fip_artist_fix_v1', '1');
+  trackCache = {};
+  saveCacheToStorage();
+}
+setStatus('Select a channel to begin');
+
+// ── CHANNEL GRID ──
+function buildChannelGrid() {
+  const grid = document.getElementById('channelGrid');
+  CHANNELS_CLEAN.forEach(ch => {
+    const btn = document.createElement('button');
+    btn.className = 'ch-btn';
+    btn.textContent = ch.label;
+    btn.dataset.id = ch.id;
+    btn.onclick = () => selectChannel(ch);
+    grid.appendChild(btn);
+  });
+}
+
+function selectChannel(ch) {
+  currentChannel = ch;
+  document.querySelectorAll('.ch-btn').forEach(b => b.classList.toggle('active', b.dataset.id === ch.id));
+  clearInterval(pollTimer);
+  fetchLive._lastKey = null;
+  setStatus(`<span class="spinner"></span>&nbsp;Loading ${ch.label}…`);
+  fetchLive(ch);
+  fetchHistory(ch);
+  pollTimer = setInterval(() => fetchLive(ch), 30000);
+  updateHistoryNotice();
+}
+
+// ── HISTORY via RadioFrance OpenAPI grid query (max 24h per request) ──
+async function fetchHistory(ch, daysBack = 7) {
+  if (!ch.enum) return;
+
+  // Only reload if cache is empty or last fetch was >2 hours ago
+  const cacheKey   = `fip_lastfetch_${ch.id}`;
+  const lastFetch  = parseInt(localStorage.getItem(cacheKey) || '0');
+  const twoHours   = 2 * 60 * 60 * 1000;
+  const hasCache   = (trackCache[ch.id] || []).length > 0;
+
+  if (hasCache && (Date.now() - lastFetch) < twoHours) {
+    renderTracks();
+    setStatus(`✓ ${(trackCache[ch.id]||[]).length} tracks for ${ch.label} (cached)`);
+    return;
+  }
+
+  // Fresh load — clear stale cache for this channel
+  trackCache[ch.id] = [];
+  saveCacheToStorage();
+
+  let totalAdded = 0;
+  const now = Math.floor(Date.now() / 1000);
+
+  // Process oldest day first so timestamps accumulate in order
+  for (let d = daysBack - 1; d >= 0; d--) {
+    const dayEnd   = now - (d * 86400);
+    const dayStart = dayEnd - 86400;
+
+    const query = `{
+      grid(station: ${ch.enum}, start: ${dayStart}, end: ${dayEnd}, includeTracks: true) {
+        ... on TrackStep {
+          id start end
+          track { title albumTitle label mainArtists authors performers }
+        }
+      }
+    }`;
+
+    try {
+      const r = await fetch(OPENAPI, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      const data = await r.json();
+
+      if (data.errors) {
+        console.warn(`Day ${d} error:`, data.errors[0]?.message);
+        continue;
+      }
+
+      const steps = data?.data?.grid || [];
+      steps.forEach(step => {
+        if (!step.track?.title) return;
+        addTrack(ch.id, {
+          title:   step.track.title,
+          artist:  step.track.mainArtists?.[0] || step.track.performers?.[0] || step.track.authors?.[0] || 'Unknown',
+          album:   step.track.albumTitle || null,
+          cover:   null,
+          playedAt: step.start * 1000
+        }, false);
+        totalAdded++;
+      });
+
+      // Update status as we go so it doesn't look frozen
+      setStatus(`<span class="spinner"></span>&nbsp;Loading history… day ${d+1}/${daysBack} (${totalAdded} tracks)`);
+
+    } catch(e) {
+      console.warn(`Day ${d} fetch error:`, e.message);
+    }
+  }
+
+  renderTracks();
+  localStorage.setItem(cacheKey, Date.now().toString());
+  setStatus(`✓ ${totalAdded} tracks loaded for ${ch.label} (${daysBack}d)`);
+}
+
+// ── LIVE FETCH via RadioFrance livemeta REST API (direct, no proxy) ──
+async function fetchLive(ch) {
+  const url = `${RF_BASE}${ch.stationId}`;
+  try {
+    const r = await fetch(url);
+    const text = await r.text();
+    if (!text || !text.trim()) {
+      setStatus(`⚠ Empty response for ${ch.label} (station ${ch.stationId})`); return;
+    }
+    let d;
+    try { d = JSON.parse(text); } catch(e) {
+      setStatus(`⚠ ${ch.label}: ${r.status} — ${text.slice(0,80)}`); return;
+    }
+    if (d.error) { setStatus(`⚠ ${d.error}`); return; }
+
+    const steps = Object.values(d.steps || {});
+    if (!steps.length) { setStatus(`⚠ No steps in response`); return; }
+
+    const now = Date.now() / 1000;
+
+    // Find the current step (started in past, ends in future)
+    const currentStep = steps
+      .filter(s => s.start && s.start <= now && (!s.end || s.end >= now))
+      .sort((a, b) => b.start - a.start)[0]
+      || steps.filter(s => s.start && s.start <= now).sort((a, b) => b.start - a.start)[0];
+
+    // Add all steps as history (isNew=false — no play count bump)
+    steps.forEach(step => {
+      if (!step.start || !step.title || step.embedType !== 'song') return;
+      addTrack(ch.id, stepToTrack(step), false);
+    });
+
+    // Handle current track — only bump play count if it changed since last poll
+    if (currentStep?.title && currentStep.embedType === 'song') {
+      const track = stepToTrack(currentStep);
+      const key   = normalise(track.title, track.artist);
+      const isNew = fetchLive._lastKey !== key;
+      fetchLive._lastKey = key;
+      if (isNew) addTrack(ch.id, track, true);
+      nowPlaying = track;
+      renderNowPlaying();
+    }
+
+    renderTracks();
+
+  } catch(e) {
+    setStatus(`⚠ Fetch error: ${e.message}`);
+    console.error(e);
+  }
+}
+
+function stepToTrack(step) {
+  // Real field names from livemeta: authors (string), highlightedArtists (array), performers (string)
+  const artist = (step.highlightedArtists?.length ? step.highlightedArtists.join(', ') :
+                  step.authors  || step.performers || 'Unknown');
+  return {
+    title:   step.title,
+    artist,
+    album:   step.titreAlbum  || null,
+    cover:   step.visual      || null,
+    playedAt: step.start * 1000
+  };
+}
+
+function addTrack(channelId, track, isNew = false) {
+  if (!trackCache[channelId]) trackCache[channelId] = [];
+  const key = normalise(track.title, track.artist);
+  const existing = trackCache[channelId].find(t => normalise(t.title, t.artist) === key);
+
+  if (existing) {
+    // Count as a new play if this timestamp is >60 mins from the last recorded play
+    const minsSince = (track.playedAt - (existing.lastPlayed || 0)) / 60000;
+    if (minsSince > 60) {
+      existing.plays = (existing.plays || 1) + 1;
+      existing.lastPlayed = track.playedAt;
+    } else if (track.playedAt < (existing.firstPlayed || Infinity)) {
+      // Earlier occurrence — update firstPlayed but don't double-count
+      existing.firstPlayed = track.playedAt;
+    }
+    // Update cover if we now have one and didn't before
+    if (!existing.cover && track.cover) existing.cover = track.cover;
+    if (!existing.album && track.album) existing.album = track.album;
+  } else {
+    trackCache[channelId].push({
+      title:       track.title,
+      artist:      track.artist,
+      album:       track.album   || null,
+      cover:       track.cover   || null,
+      firstPlayed: track.playedAt,
+      lastPlayed:  track.playedAt,
+      plays: 1
+    });
+  }
+  saveCacheToStorage();
+}
+
+function normalise(title, artist) {
+  return `${(title||'').toLowerCase().trim()}__${(artist||'').toLowerCase().trim()}`;
+}
+
+// ── HISTORY API (Radio France Open API) ──
+// ── RENDER ──
+function renderNowPlaying() {
+  if (!nowPlaying) return;
+  const wrap   = document.getElementById('nowPlayingWrap');
+  const ytUrl  = ytSearch(nowPlaying.title, nowPlaying.artist);
+  const imgHtml = nowPlaying.cover
+    ? `<img src="${esc(nowPlaying.cover)}" style="width:48px;height:48px;object-fit:cover;flex-shrink:0;">`
+    : `<div style="width:48px;height:48px;background:var(--surface2);flex-shrink:0;"></div>`;
+  wrap.innerHTML = `
+    <div class="now-playing">
+      <div class="np-label"><span class="live-dot"></span>Now</div>
+      ${imgHtml}
+      <div class="np-track">
+        <div class="np-title">${esc(nowPlaying.title)}</div>
+        <div class="np-artist">${esc(nowPlaying.artist)}${nowPlaying.album ? ` · <span style="color:var(--muted)">${esc(nowPlaying.album)}</span>` : ''}</div>
+      </div>
+      <a class="np-yt" href="${ytUrl}" target="_blank">▶ YouTube</a>
+    </div>
+  `;
+}
+
+function renderTracks() {
+  const list = document.getElementById('trackList');
+  const ch = currentChannel;
+  if (!ch) return;
+
+  const tracks = getTracksForChannel(ch.id);
+
+  if (tracks.length === 0) {
+    list.innerHTML = `<div class="empty-state"><span class="big">${ch.label.toUpperCase()}</span>No tracks yet…</div>`;
+    return;
+  }
+
+  let sorted = [...tracks];
+  if (sortMode === 'plays')  sorted.sort((a,b) => (b.plays||1) - (a.plays||1));
+  if (sortMode === 'recent') sorted.sort((a,b) => (b.lastPlayed||0) - (a.lastPlayed||0));
+  if (sortMode === 'alpha')  sorted.sort((a,b) => (a.title||'').localeCompare(b.title||''));
+
+  const total  = sorted.reduce((s,t) => s + (t.plays||1), 0);
+  setStatus(`<span class="accent">${sorted.length}</span> unique &nbsp;·&nbsp; <span class="accent">${total}</span> plays &nbsp;·&nbsp; ${ch.label} &nbsp;·&nbsp; updates every 30s`);
+
+  list.innerHTML = sorted.map((t, i) => {
+    const ytUrl  = ytSearch(t.title, t.artist);
+    const last   = t.lastPlayed ? new Date(t.lastPlayed).toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const thumb  = t.cover
+      ? `<img src="${esc(t.cover)}" style="width:36px;height:36px;object-fit:cover;flex-shrink:0;">`
+      : `<div style="width:36px;height:36px;background:var(--surface2);flex-shrink:0;"></div>`;
+    return `
+      <div class="track-item">
+        <div class="track-num">${i+1}</div>
+        ${thumb}
+        <div class="track-info">
+          <div class="track-title">${esc(t.title)}</div>
+          <div class="track-meta">
+            <span>${esc(t.artist)}</span>
+            ${t.album ? `<span>${esc(t.album)}</span>` : ''}
+            <span>${last}</span>
+          </div>
+        </div>
+        <div class="track-plays">
+          <span class="plays-count">${t.plays||1}</span>
+          <span class="plays-label">play${(t.plays||1)!==1?'s':''}</span>
+        </div>
+        <a class="yt-link" href="${ytUrl}" target="_blank">▶ YT</a>
+      </div>
+    `;
+  }).join('');
+}
+
+function getTracksForChannel(id) {
+  const days = parseInt(document.getElementById('daysSelect').value);
+  if (days === 0) return trackCache[id] || []; // 0 = show all
+  const cutoff = Date.now() - days * 86400000;
+  // Filter for DISPLAY only — full history stays in localStorage
+  return (trackCache[id] || []).filter(t => (t.lastPlayed || t.firstPlayed || 0) >= cutoff);
+}
+
+function setStatus(html) {
+  document.getElementById('statusBar').innerHTML = `<span>${html}</span>`;
+}
+
+function updateHistoryNotice() {
+  const hasKey = document.getElementById('apiKey').value.trim().length > 10;
+  document.getElementById('historyNotice').style.display = (!hasKey && currentChannel) ? 'flex' : 'none';
+}
+
+// ── SORT ──
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.onclick = () => {
+    sortMode = btn.dataset.sort;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderTracks();
+  };
+});
+
+// ── CLEAR ──
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!currentChannel) return;
+  if (!confirm(`Clear all cached tracks for ${currentChannel.label}?`)) return;
+  trackCache[currentChannel.id] = [];
+  saveCacheToStorage();
+  nowPlaying = null;
+  document.getElementById('nowPlayingWrap').innerHTML = '';
+  renderTracks();
+});
+
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  if (!currentChannel) return;
+  localStorage.removeItem(`fip_lastfetch_${currentChannel.id}`);
+  trackCache[currentChannel.id] = [];
+  saveCacheToStorage();
+  nowPlaying = null;
+  document.getElementById('nowPlayingWrap').innerHTML = '';
+  fetchLive(currentChannel);
+  fetchHistory(currentChannel);
+});
+
+// ── STORAGE ──
+function saveCacheToStorage() {
+  try { localStorage.setItem('fip_track_cache_v2', JSON.stringify(trackCache)); } catch(e) {}
+}
+
+function loadCacheFromStorage() {
+  try {
+    const d = localStorage.getItem('fip_track_cache_v2');
+    if (d) trackCache = JSON.parse(d);
+  } catch(e) {}
+}
+
+// ── UTILS ──
+function ytSearch(title, artist) {
+  return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(`${artist} ${title}`);
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function runDiagnostic() {
+  setStatus('<span class="spinner"></span>&nbsp;Probing stations…');
+
+  // First probe known stations
+  const bad = [];
+  for (const ch of CHANNELS_CLEAN) {
+    try {
+      const r = await fetch(`${RF_BASE}${ch.stationId}`, { signal: AbortSignal.timeout(4000) });
+      const text = await r.text();
+      try { JSON.parse(text); } catch(e) { bad.push(ch.id); }
+    } catch(e) { bad.push(ch.id); }
+  }
+
+  if (!bad.length) { setStatus('✓ All stations OK'); return; }
+
+  // Scan candidate IDs for the broken ones
+  setStatus(`<span class="spinner"></span>&nbsp;Scanning IDs for: ${bad.join(', ')}…`);
+  const candidates = [78,79,80,85,86,87,88,89,90,95,100,105,110,115,120,125,130,135,140,143,144,145,146,147,148,149,150,155,160];
+  const found = {};
+
+  for (const id of candidates) {
+    try {
+      const r = await fetch(`${RF_BASE}${id}`, { signal: AbortSignal.timeout(3000) });
+      const text = await r.text();
+      try {
+        const d = JSON.parse(text);
+        const steps = Object.values(d.steps || {});
+        const sample = steps[0];
+        if (sample?.stationId) {
+          console.log(`ID ${id}: stationId=${sample.stationId} — "${sample.title}" (${sample.embedType})`);
+          found[id] = `stationId=${sample.stationId} "${sample.title?.slice(0,30)}"`;
+        }
+      } catch(e) {}
+    } catch(e) {}
+  }
+
+  console.log('Scan complete. Found IDs:', found);
+  setStatus(`Scan done — check console (F12) for results. Bad: ${bad.join(', ')}`);
+}
+
+function startClock() {
+  const el = document.getElementById('clock');
+  const tick = () => { el.textContent = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'}); };
+  tick();
+  setInterval(tick, 1000);
+}
+</script>
+</body>
+</html>
